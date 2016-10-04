@@ -1,5 +1,7 @@
 package com.steven.coolweather.util;
 
+import android.util.Log;
+
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -20,6 +22,7 @@ public class HttpUtil {
                 //设置Http访问参数，连接服务器
                 try {
                     URL url = new URL(address);
+                    Log.d("TAG", "run 1 : address = " + address);
                     connection = (HttpURLConnection) url.openConnection();
                     connection.setRequestMethod("GET");
                     connection.setConnectTimeout(8000);
@@ -28,7 +31,7 @@ public class HttpUtil {
                     BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
                     StringBuilder response = new StringBuilder();
                     String line;
-                    //连接服务器，读取全部数据,以字符串的形式存放在response
+                    //连接服务器，读取全部数据,以字符串的形式存放在response.
                     while((line = reader.readLine()) != null){
                         response.append(line);
                     }

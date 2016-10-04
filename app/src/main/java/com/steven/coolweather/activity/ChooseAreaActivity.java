@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
+import android.view.Window;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
@@ -40,7 +41,6 @@ public class ChooseAreaActivity extends Activity {
     private List<County> countyList;
     private Province selectedProvince;
     private City selectedCity;
-    private County selectedCounty;
     private int currentLevel;
     private ArrayAdapter<String> adapter;
     private List<String> dataList = new ArrayList<>();
@@ -51,7 +51,7 @@ public class ChooseAreaActivity extends Activity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        //requestWindowFeature(Window.FEATURE_NO_TITLE);
+        requestWindowFeature(Window.FEATURE_NO_TITLE);
         setContentView(R.layout.choose_area);
         listView = (ListView)findViewById(R.id.lv_content);
         textView = (TextView)findViewById(R.id.tv_title);
@@ -60,15 +60,19 @@ public class ChooseAreaActivity extends Activity {
 
         //获取CoolWeatherDB实例
         coolWeatherDB = CoolWeatherDB.getInstance(this);
-        if(coolWeatherDB == null){
-            Log.d("Steven", "*** onCreate 1***");
-        }
-
+        
         //ListView Item监听器,加载市级和县级数据
         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
                 //点击ListView Item的响应操作
+                if(currentLevel == LEVEL_PROVINCE){
+                    selectedProvince = provinceList.get(i); //获取在ListView中被点击的省份
+                    queryCities();
+                } else if (currentLevel == LEVEL_CITY){
+                    selectedCity = cityList.get(i);
+                    queryCounties();
+                }
             }
         });
         //加载省级数据
@@ -79,15 +83,16 @@ public class ChooseAreaActivity extends Activity {
 
     //1.1 查询全国所有的省，优先从数据库查询，如果没有查询到再去服务器上查询。
     private void queryProvinces(){
-        Log.d("Steven", "*** queryProvinces 1***");
+        //从本地数据库查询省级数据
         provinceList = coolWeatherDB.loadProvince();
-        Log.d("Steven", "*** queryProvinces 2***");
+
         if(provinceList.size() > 0){
             dataList.clear();
 
             //从数据库中提取所有保存的省名，存放在dataList中,在ListView中显示
             for(Province province: provinceList){
                 dataList.add(province.getProvinceName());
+                //Log.d(TAG, "provinceCode = " + province.getProvinceCode());
             }
             adapter.notifyDataSetChanged(); //?
             listView.setSelection(0);   //?
@@ -101,18 +106,65 @@ public class ChooseAreaActivity extends Activity {
     }
 
 
+
+    //1.2 查询该省份所有的市，优先从数据库查询，如果没有查询到再去服务器上查询。
+    private void queryCities(){
+        cityList = coolWeatherDB.loadCity(selectedProvince.getId());
+        if(cityList.size() > 0){
+            dataList.clear();
+            for(City city : cityList){
+                dataList.add(city.getCityName());
+            }
+            adapter.notifyDataSetChanged();
+            listView.setSelection(0);
+            textView.setText(selectedProvince.getProvinceName());
+            currentLevel = LEVEL_CITY;
+        } else {
+            queryFromServer(selectedProvince.getProvinceCode(), "city");
+        }
+
+    }
+
+
+    //1.3 查询该市所有的县，优先从数据库查询，如果没有查询到再去服务器上查询。
+    private void queryCounties(){
+        countyList = coolWeatherDB.loadCounty(selectedCity.getId());
+        if(countyList.size() > 0){
+            dataList.clear();
+            for(County county: countyList){
+                dataList.add(county.getCountyName());
+            }
+            adapter.notifyDataSetChanged();
+            listView.setSelection(0);
+            textView.setText(selectedCity.getCityName());
+            currentLevel =  LEVEL_COUNTY;
+        } else {
+            queryFromServer(selectedCity.getCityCode(), "county");
+        }
+
+    }
+
+
+
+
     //1.2 根据传入的代号和类型从服务器上查询省市县数据。
     private void queryFromServer(final String code, final String type){
-        String address;
+        String address = null;
         if(!TextUtils.isEmpty(code)){
-            //请求市县级数据
-            address = "http://www.weather.com.cn/data/city3jdata/provshi/" + code + ".xml";
+            //请求市级数据
+            if(currentLevel == LEVEL_PROVINCE) {
+                address = "http://www.weather.com.cn/data/city3jdata/provshi/" + code + ".html";
+            //请求县级数据
+            } else if(currentLevel == LEVEL_CITY){
+                address = "http://www.weather.com.cn/data/city3jdata/station/" + selectedProvince.getProvinceCode() + code + ".html";
+            }
         } else {
             //请求省级数据
             address = "http://www.weather.com.cn/data/city3jdata/china.html";
         }
         //自定义函数，开启ProgressDialog
         showProgressDialog();
+        Log.d(TAG, "queryFromServer: address = " + address);
 
         HttpUtil.sendHttpRequest(address, new HttpCallbackListener()
         {
@@ -122,13 +174,12 @@ public class ChooseAreaActivity extends Activity {
                 //处理省级数据:保存到数据库中
                 if("province".equals(type)){
                     result = Utility.handleProvincesResponse(coolWeatherDB, response);
-
                     //处理市级数据:保存到数据库中
                 } else if ("city".equals(type)){
-
+                    result = Utility.handleCitiesResponse(coolWeatherDB, response, selectedProvince.getId());
                     //处理县级数据:保存到数据库中
                 } else if ("county".equals(type)){
-
+                    result = Utility.handleCountiesResponse(coolWeatherDB, response, selectedCity.getId());
                 }
 
 
@@ -139,6 +190,10 @@ public class ChooseAreaActivity extends Activity {
                             closeProgressDialog();
                             if("province".equals(type)){	//再次调用queryProvinces()函数;
                                 queryProvinces();
+                            } else if("city".equals(type)){
+                                queryCities();
+                            } else if("county".equals(type)){
+                                queryCounties();
                             }
                         }
                     });
@@ -181,9 +236,9 @@ public class ChooseAreaActivity extends Activity {
     //捕获Back按键，根据当前的级别来判断，此时应该返回市列表、省列表、还是直接退出。
     public void onBackPressed(){
         if(currentLevel == LEVEL_COUNTY){
-            //queryCities();
+            queryCities();
         } else if(currentLevel == LEVEL_CITY){
-            //queryProvinces();
+            queryProvinces();
         } else{
             finish();	//当前是省级数据时直接退出
         }

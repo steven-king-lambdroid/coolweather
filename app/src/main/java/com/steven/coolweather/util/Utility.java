@@ -49,12 +49,14 @@ public class Utility {
      * @param response
      * @return
      */
-    public synchronized static boolean handleCitiesRespose(CoolWeatherDB db, String response, int provinceId){
+    public synchronized static boolean handleCitiesResponse(CoolWeatherDB db, String response, int provinceId){
         if(!TextUtils.isEmpty(response)){
+            response = response.replaceAll("\"", "").replaceAll("\\{", "").replaceAll("\\}", "");       //去除返回数据中的""和{}
+            Log.d("handleCitiesResponse", "*** response =  " + response + " ***");
             String [] allCities = response.split(",");  //解析得到“代号|城市”这样的字符串数组
             if(allCities != null && allCities.length > 0) {
                 for (String string : allCities) {
-                    String[] array = string.split("\\|");  //分别解析市级代码和名字
+                    String[] array = string.split(":");  //分别解析市级代码和名字
                     City city = new City();
                     city.setCityCode(array[0]);
                     city.setCityName(array[1]);
@@ -77,15 +79,16 @@ public class Utility {
      */
     public synchronized static boolean handleCountiesResponse(CoolWeatherDB db, String response, int cityId){
         if(!TextUtils.isEmpty(response)){
+            response = response.replaceAll("\"", "").replaceAll("\\{", "").replaceAll("\\}", "");       //去除返回数据中的""和{}
             String [] allCounties = response.split(",");    //解析得到“代号|城市”这样的字符串数组
             if(allCounties != null && allCounties.length > 0){
                 for(String string : allCounties){
-                    String [] array = string.split("\\|");  //分别解析县级代码和名字
+                    String [] array = string.split(":");  //分别解析县级代码和名字
                     County county  = new County();
                     county.setCountyCode(array[0]);
                     county.setCountyName(array[1]);
                     county.setCityId(cityId);
-                    db.saveCouty(county);       //将解析出来的县级数据存放在数据库的County表中
+                    db.saveCounty(county);       //将解析出来的县级数据存放在数据库的County表中
                 }
                 return true;
             }
