@@ -12,7 +12,9 @@ import java.net.URL;
  * Created by Steven on 2016/9/29.
  */
 public class HttpUtil {
-    public static void sendHttpRequest(final String address, final HttpCallbackListener listener){
+    private static final String TAG = "Steven";
+    public static void sendHttpRequest(final String address, final HttpCallbackListener listener) {
+       // Log.d(TAG, "**** sendHttpRequest 1: listener = " + listener);
         //开启子线程处理连接服务器的耗时任务
         new Thread(new Runnable() {
             @Override
@@ -32,22 +34,28 @@ public class HttpUtil {
                     StringBuilder response = new StringBuilder();
                     String line;
                     //连接服务器，读取全部数据,以字符串的形式存放在response.
-                    while((line = reader.readLine()) != null){
+
+                    Log.d(TAG, "******* reader = " + reader);
+                    while ((line = reader.readLine()) != null) {
+                        //line = reader.readLine();
+                        Log.d(TAG, "line = " + line);
                         response.append(line);
                     }
-                    if(listener != null){        //正常响应的数据回调onFinish()方法,来进行数据处理逻辑
+                    Log.d(TAG, "-----------");
+                    //Log.d(TAG, "*******run: listener="+listener);
+                    if (listener != null) {        //正常响应的数据回调onFinish()方法,来进行数据处理逻辑
                         listener.onFinish(response.toString());
                     }
 
-                } catch (Exception e){          //异常响应，回调onError()方法
-                    if(listener != null){
+                } catch (Exception e) {          //异常响应，回调onError()方法
+                    if (listener != null) {
                         listener.onError(e);
                     }
 
 
                 } finally {
                     //关闭连接
-                    if(connection != null){
+                    if (connection != null) {
                         connection.disconnect();
                     }
                 }
