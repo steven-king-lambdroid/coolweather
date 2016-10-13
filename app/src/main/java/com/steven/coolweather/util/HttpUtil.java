@@ -31,7 +31,10 @@ public class HttpUtil {
                     connection.setReadTimeout(8000);
                     InputStream inputStream = connection.getInputStream();
                     BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
-                    StringBuilder response = new StringBuilder();
+
+                    //此处不能用StringBuilder，否则部分天气数据解析不出报EOFException
+                    StringBuffer response = new StringBuffer();
+
                     String line;
                     //连接服务器，读取全部数据,以字符串的形式存放在response.
 
